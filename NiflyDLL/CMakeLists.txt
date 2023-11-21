@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16...3.23)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
@@ -15,19 +15,25 @@ project(NiflyDLL LANGUAGES C CXX)
 add_subdirectory(external/nifly)
 
 # --------------------------------------------------
+# Submodule Configuration
+if(MSVC)
+    set_property(TARGET nifly PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+# --------------------------------------------------
 # Create interface libs
 add_library(nifly_dll_warnings INTERFACE)
 if(MSVC)
-    target_compile_options(nifly_dll_warnings INTERFACE /W3 /WX /permissive-)
+    target_compile_options(nifly_dll_warnings INTERFACE /W3 /permissive-)
 else()
-    target_compile_options(nifly_dll_warnings INTERFACE -Wall -Wextra -pedantic -Werror)
+    target_compile_options(nifly_dll_warnings INTERFACE -Wall -Wextra)
 endif()
 
 add_library(nifly_dll_definitions INTERFACE)
 target_compile_definitions(nifly_dll_definitions INTERFACE NIFLYDLL_EXPORTS)
 if(MSVC)
     target_compile_definitions(nifly_dll_definitions INTERFACE
-        WIN32_LEAN_AND_MEAN
         NOMINMAX)
 endif()
 
@@ -61,17 +67,38 @@ target_precompile_headers(nifly_dll_pch INTERFACE
 
 # --------------------------------------------------
 # Create engine lib
-file(GLOB_RECURSE nifly_dll_sources CONFIGURE_DEPENDS "src/*.cpp")
-file(GLOB_RECURSE nifly_dll_headers CONFIGURE_DEPENDS "include/*.hpp")
-add_library(nifly_dll SHARED ${nifly_dll_sources} ${nifly_dll_headers})
+set(nifly_dll_sources
+	Anim.cpp
+	dllmain.cpp
+	Logger.cpp
+	NiflyFunctions.cpp
+	NiflyWrapper.cpp
+	pch.cpp
+#	TestDLL.cpp
+)
+set(nifly_dll_headers
+	Logger.hpp
+	NiflyDefs.hpp
+	NiflyFunctions.hpp
+	NiflyWrapper.hpp
+)
+set(nifly_dll_rc
+	NiflyDLL.rc
+)
+
+add_library(nifly_dll SHARED ${nifly_dll_sources} ${nifly_dll_headers} ${nifly_dll_rc})
 set_target_properties(nifly_dll PROPERTIES OUTPUT_NAME NiflyDLL)
 target_link_libraries(nifly_dll PRIVATE
     nifly_dll_warnings
     nifly_dll_definitions
     nifly_dll_dependencies
     nifly_dll_pch)
-target_include_directories(nifly_dll PRIVATE "include")
+# target_include_directories(nifly_dll PRIVATE "include")
 
+if(MSVC)
+    set_property(TARGET nifly_dll PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 # --------------------------------------------------
 # Merge files from source and include in the IDE
